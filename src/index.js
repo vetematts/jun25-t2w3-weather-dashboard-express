@@ -1,7 +1,17 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const app = express();
 
 app.use(express.json());
+
+// Limit to 5 /weather requests per minute per IP.
+const weatherLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 5,
+    message: { error: "Too many weather requests, cool down!" }
+});
+
+app.use(weatherLimiter);
 
 // Logger middleware
 app.use((request, response, next) => {
@@ -25,13 +35,24 @@ validateCoords = (request, response, next) => {
     next();
 }
 
+function blockAntartica(request, response, next) {
+    const { latitude } = request.body;
+
+    if (latitude <-89) {
+        return response.status(403).json({
+            error: "Sorry, no weather for Antartica"
+        });
+    }
+    next();
+}
+
 app.get('/', (request, response) => {
     response.json({
         "message": "Hello World!"
     });
 });
 
-app.post('/weather', validateCoords, async (request, response, next) => {
+app.post('/weather', validateCoords, blockAntartica, async (request, response, next) => {
     const { latitude, longitude } = request.body;
     try {
         const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}`);
