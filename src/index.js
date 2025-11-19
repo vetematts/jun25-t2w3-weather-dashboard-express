@@ -1,7 +1,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
 const app = express();
+
+let users = [];
 
 app.use(express.json());
 
@@ -41,7 +44,7 @@ validateCoords = (request, response, next) => {
 function blockAntartica(request, response, next) {
     const { latitude } = request.body;
 
-    if (latitude <-89) {
+    if (latitude < -89) {
         return response.status(403).json({
             error: "Sorry, no weather for Antartica"
         });
@@ -52,7 +55,7 @@ function blockAntartica(request, response, next) {
 dummyAuth = (request, response, next) => {
     // For demo, simulate the authenticated users only
     const authenticated = true;
-    if (!authenticated){
+    if (!authenticated) {
         return response.status(401).json({
             error: "You must be logged in!!"
         });
@@ -62,8 +65,8 @@ dummyAuth = (request, response, next) => {
 
 checkAdminRole = (request, response, next) => {
     // For demo, simulate getting admin check from the token/header
-    const user = {isAdmin: true};
-    if (!user || !user.isAdmin){
+    const user = { isAdmin: true };
+    if (!user || !user.isAdmin) {
         response.status(403).json({
             error: "Admins only."
         });
@@ -77,20 +80,62 @@ app.get('/', (request, response) => {
     });
 });
 
-app.post('/login', (request, response) => {
-    const {username, password} = request.body;
+app.post('/signup', async (request, response) => {
+    const { username, password } = request.body;
+
+    // Hash the password with 10 salt rounds (default)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Store the username and password in the database (in our case, in the users list)
+    users.push({ username, password: hashedPassword });
+
+    console.log(users);
+    response.status(201).json({
+        message: 'User registered!'
+    });
+})
+
+app.post('/login', async (request, response) => {
+    const { username, password } = request.body;
 
     // Simulate user verification (replace it with real verification)
-    if (username == 'user' && password == 'pass') {
-        const payload = { username };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '5m' });
-        return response.json({
-            token
+    // if (username == 'user' && password == 'pass') {
+    //     const payload = { username };
+    //     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '5m' });
+    //     return response.json({
+    //         token
+    //     });
+    // }
+    // response.status(401).json({
+    //     error: 'Invalid credentials'
+    // });
+
+    // Advanced method
+    // Find the user (demo)
+    console.log(users);
+    const user = users.find(u => u.username === username);
+    console.log(user);
+    if (!user) {
+        
+        return response.status(401).json({
+            error: 'Invalid credentials'
         });
     }
-    response.status(401).json({
-        error: 'Invalid credentials'
+
+    // Compare the password with hashedPassword
+    const isMatch = bcrypt.compare(password, user.password);
+    if (!isMatch) {
+        return response.status(401).json({
+            error: 'Invalid credentials'
+        });
+    }
+
+    // Password is correct: Issue the JWT here
+    const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '5m' });
+    response.json({
+        token
     });
+
 });
 
 authenticateToken = (request, response, next) => {
@@ -123,7 +168,7 @@ app.post('/weather', authenticateToken, validateCoords, blockAntartica, async (r
         const data = await weatherResponse.json();
         console.log(data);
 
-        if(!data.current){
+        if (!data.current) {
             // Passes API fetch error to error middleware
             throw new Error(data.error || 'Failed to fetch weather data');
         }
