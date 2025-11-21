@@ -2,9 +2,21 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const cors = require('cors');
 const app = express();
 
 let users = [];
+
+// Implement helmet middleware
+app.use(helmet());
+
+const corsOptions = {
+    origin: 'http://localhost:3000', // Adjust to your frontend URL
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
