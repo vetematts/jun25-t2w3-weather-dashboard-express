@@ -2,4 +2,4 @@
 Learning Express Middlewares and Authentication using the open-meteo API.
 
 # Contributor:
-Lillie Chapman (https://github.com/lillieharlow)
+Lillie Chapman ([https://github.com/lillieharlow)]
